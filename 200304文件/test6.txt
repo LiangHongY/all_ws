@@ -1,0 +1,37 @@
+DWAPlannerROS:
+max_vel_x:2.5
+max_trans_vel:2.5
+mobile_base_controller:9
+ twist_angzp_scale:1.006
+ twist_angzn_scale:1.013
+ twist_linxp_scale:1.2566
+ twist_linxn_scale:1.2566
+motor_control:   
+ motor_cmd_scale:0.795
+ motors_sign:-1
+ invert_motors:true
+adjust_urdf:9
+ laser1_xyz_x_delta:-0.01
+ laser1_xyz_y_delta:0.015
+ laser1_xyz_z_delta:0.0
+ laser1_rpy_r_delta:0.0
+ laser1_rpy_p_delta:0.0
+ laser1_rpy_y_delta:0.0054
+ laser2_xyz_x_delta:0.0
+ laser2_xyz_y_delta:-0.01
+ laser2_xyz_z_delta:0.0
+ laser2_rpy_r_delta:0.0
+ laser2_rpy_p_delta:0.0
+ laser2_rpy_y_delta:0.0038
+Depthcamera_left_xyz_x_delta:0.005
+Depthcamera_left_xyz_y_delta:-0.007
+Depthcamera_left_xyz_z_delta:0.145
+Depthcamera_left_rpy_r_delta:-0.18
+Depthcamera_left_rpy_p_delta:0.82
+Depthcamera_left_rpy_y_delta:-0.1
+Depthcamera_right_xyz_x_delta:0.0
+Depthcamera_right_xyz_y_delta:0.0
+Depthcamera_right_xyz_z_delta:0.0
+Depthcamera_right_rpy_r_delta:0.58
+Depthcamera_right_rpy_p_delta:0.6
+Depthcamera_right_rpy_y_delta:0.0

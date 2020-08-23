@@ -1,0 +1,6 @@
+Depthcamera_right_xyz_x_delta: 0.0
+Depthcamera_right_xyz_y_delta: 0.223
+Depthcamera_right_xyz_z_delta: 0.0
+Depthcamera_right_rpy_r_delta: 0.58
+Depthcamera_right_rpy_p_delta: 243
+Depthcamera_right_rpy_y_delta: 14
