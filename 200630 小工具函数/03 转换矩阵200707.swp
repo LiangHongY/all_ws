@@ -1,0 +1,130 @@
+ '---------------------------
+ 'Copyright 2020, Aeroanion
+ 'Licensed under MIT License.
+ '---------------------------
+    
+    '--- TODO ---:    //注释
+    'Make it find coordinate systems in the parts in a assembly. Currently, it only finds transforms in assembly level tree. '使用在装配体上面的坐标系
+    'Make it resizable, or other desriable formatting traits?        //
+    'A more elegant way of handling the units and conversion factors?
+    'Make the scroll wheel work when there are too many items in the comboboxes.  
+
+Option Explicit
+
+'定义一系列变量
+Dim swApp As SldWorks.SldWorks                '面向的是sw对象
+Dim swModel As SldWorks.ModelDoc2             '设置模型对象变量
+Dim swFeatMgr As SldWorks.FeatureManager      '设置模型的管理器
+Dim swFeat As SldWorks.Feature                '设置模型特征变量
+Dim UserUnits As SldWorks.UserUnit            '设置单位
+Dim unitConvFactor As Variant                 '定义转换因子
+Dim swMathUtil As SldWorks.MathUtility                       '设置数学公式
+Dim swTransform As SldWorks.MathTransform                     '设置变换数学公式变量
+Dim swCoordSys As SldWorks.CoordinateSystemFeatureData       '设置坐标系数据变量
+
+Dim XFormList As New Collection
+Public XFormNameList As New Collection 'This has to be Public so the UserForm can access it   '定义公有性成员，方便UserForm访问
+Public UnitsNameList As New Collection 'This has to be Public so the UserForm can access it   '同上
+
+Sub main()
+    
+    '初始化变量
+    Set swApp = Application.SldWorks
+    Set swMathUtil = swApp.GetMathUtility
+    Set swModel = swApp.ActiveDoc
+    Set swFeatMgr = swModel.FeatureManager
+    Set UserUnits = swModel.GetUserUnit(swLengthUnit)
+    
+    'Get a list of all the coordinate system transforms in the feature tree:   '这节是获取装配体上面的两个坐标系
+    XFormNameList.Add ("-default-") 'Add the default coordinate system to the list.
+    Set swFeat = swModel.FirstFeature
+    While Not swFeat Is Nothing
+        If swFeat.GetTypeName2 = "CoordSys" Then
+            XFormNameList.Add (swFeat.Name)
+        End If
+        Set swFeat = swFeat.GetNextFeature 'Gets the next feature in the part.  '从零件上面选择下一个特征
+    Wend
+
+    'Get the document conversion factor:
+    unitConvFactor = UserUnits.GetConversionFactor   'xx的转换因数
+
+    'Populate the List of availible units names:    '单位
+    UnitsNameList.Add ("-document units-")
+    UnitsNameList.Add ("meters")             '公尺
+    UnitsNameList.Add ("centimeters")        '厘米
+    UnitsNameList.Add ("millimeters")        '毫米
+    UnitsNameList.Add ("inches")             '英寸
+    UnitsNameList.Add ("feet")               '尺
+
+    'Load the UI:     '加载ui界面
+    Load UserForm1   
+        
+    'Show the UI:     '展示ui界面
+    UserForm1.Show
+    
+End Sub
+
+
+
+Public Function transformString(A_T_name As String, B_T_name As String, units As String) As String   '计算两个坐标系的旋转矩阵
+    
+    Dim A_T As SldWorks.MathTransform     '定义A_T为模型的数学转换
+    Dim B_T As SldWorks.MathTransform        '定义B_T为模型的数学转换
+    Dim AwrtB_T As SldWorks.MathTransform    '定义AwrtB_T为模型的数学转换
+    Dim unitConvFactor As Variant
+    
+    'Get the unit conversion factor:
+    unitConvFactor = unitConvFactorFromUnits(units)
+    
+    'If the document units are choosen, set the correct units string for transformation matrix description string:   '设置单位
+    If units = "-document units-" Then units = UserUnits.GetFullUnitName(True)
+    
+    'Set the A and B transforms from the strings of the coordinate system names:    '选择坐标系赋予给对应变量
+    Set A_T = XFormFromName(A_T_name)
+    Set B_T = XFormFromName(B_T_name)
+    
+    'Calculate the trasnform of A with respect to B:    '计算坐标系A到坐标系B的旋转矩阵，并使用AwrtB_T来保存
+    Set AwrtB_T = A_T.Multiply(B_T.Inverse) 'AwrtB_T = Inv(B_T) * A_T So long as A and B have the same base (are with respect to the same frame).
+    
+    'Populating the transformation matrix string:    '获取得到的旋转矩阵数据组成如下
+    transformString = "T_1wrt2 = " & A_T_name & " * " & "inv(" & B_T_name & "):" & vbTab & "Units: " & units & vbCrLf & vbCrLf & _
+    AwrtB_T.ArrayData(0) & vbTab & AwrtB_T.ArrayData(3) & vbTab & AwrtB_T.ArrayData(6) & vbTab & AwrtB_T.ArrayData(9) * unitConvFactor & vbCrLf & _
+    AwrtB_T.ArrayData(1) & vbTab & AwrtB_T.ArrayData(4) & vbTab & AwrtB_T.ArrayData(7) & vbTab & AwrtB_T.ArrayData(10) * unitConvFactor & vbCrLf & _
+    AwrtB_T.ArrayData(2) & vbTab & AwrtB_T.ArrayData(5) & vbTab & AwrtB_T.ArrayData(8) & vbTab & AwrtB_T.ArrayData(11) * unitConvFactor & vbCrLf & _
+    "0" & vbTab & "0" & vbTab & "0" & vbTab & "1"
+    
+End Function
+
+
+
+Public Function XFormFromName(Name As String) As SldWorks.IMathTransform
+
+    If Name = "-default-" Then 'If the -default- frame is selected, return the identity transformation matrix  '选择了默认的框架，返回确定的转化矩阵
+        Set XFormFromName = swMathUtil.CreateTransform(Nothing) 'Set the transform to the identity matrix.    '把转换矩阵赋值为单位矩阵
+    Else                                  'Otherwise, cycle through the features to find the desired coordinate system by name.  '否则，函数通过特征名字查找坐标系
+        Set swFeat = swModel.FirstFeature 'swPart.FirstFeature 'Set swFeat to first feature in part.      '选择零件上面的第一个坐标系
+        While Not swFeat Is Nothing       'Run the loop while there are more features in the tree.     '循环遍历结构树里面特征
+            If swFeat.Name = Name Then
+                Set swCoordSys = swFeat.GetDefinition    'Set the feature data object for a feature.    '为特征数据设置数据目标
+                Set XFormFromName = swCoordSys.Transform 'Set the return value, the translation values are in meters.   '设置返回值，以米为单位转换数值
+            End If
+            Set swFeat = swFeat.GetNextFeature 'Set swFeat to next feature in part for next run of loop.     '下一循环遍历结构树，选择下一个特征（坐标系）
+        Wend
+    End If
+
+End Function
+
+
+
+
+Private Function unitConvFactorFromUnits(units As String) As Variant   '单位换算规则
+
+    If units = "-document units-" Then unitConvFactorFromUnits = unitConvFactor 'Document units conversion factor
+    If units = "meters" Then unitConvFactorFromUnits = 1            'Meters
+    If units = "centimeters" Then unitConvFactorFromUnits = 100     'Centimeters
+    If units = "millimeters" Then unitConvFactorFromUnits = 1000    'Millimeters
+    If units = "inches" Then unitConvFactorFromUnits = 1 / 0.0254   'Inches: 1 in = 0.0254 m
+    If units = "feet" Then unitConvFactorFromUnits = 1 / 0.3048     'Feet: 1 ft = 0.3048 m
+    
+End Function
+
